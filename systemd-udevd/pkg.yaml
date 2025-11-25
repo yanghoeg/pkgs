@@ -1,0 +1,51 @@
+name: systemd-udevd
+variant: scratch
+shell: /bin/bash
+dependencies:
+  - stage: base
+  - stage: systemd
+steps:
+  - env:
+      SOURCE_DATE_EPOCH: {{ .BUILD_ARG_SOURCE_DATE_EPOCH }}
+    install:
+      - |
+        cd /tmp/systemd
+        meson install -C build --destdir /installroot
+
+        mkdir -p /rootfs/usr/bin
+        cp /installroot/usr/bin/udevadm /rootfs/usr/bin/
+        ln -s udevadm /rootfs/usr/bin/systemd-udevd
+
+        mkdir -p /rootfs/usr/lib/pkgconfig/
+        mkdir -p /rootfs/usr/share/pkgconfig/
+        cp /installroot/usr/lib/pkgconfig/libudev.pc /rootfs/usr/lib/pkgconfig/
+        cp /installroot/usr/share/pkgconfig/udev.pc /rootfs/usr/share/pkgconfig/
+        cp -r /installroot/usr/include /rootfs/usr/
+
+        # Build hwdb.bin
+        /installroot/usr/bin/systemd-hwdb update --root=/installroot --usr --strict
+
+        mkdir -p /rootfs/usr/lib/
+        cp -r /installroot/usr/lib/udev /rootfs/usr/lib/
+        cp --preserve=links /installroot/usr/lib/libudev.* /rootfs/usr/lib/
+        # Already built this
+        rm -rf /rootfs/usr/lib/udev/hwdb.d
+        rm /rootfs/usr/lib/udev/rules.d/{README,60-cdrom_id.rules,60-persistent-alsa.rules,60-persistent-v4l.rules,64-btrfs.rules,70-joystick.rules,70-mouse.rules,70-touchpad.rules,78-sound-card.rules,90-vconsole.rules,99-systemd.rules}
+        # Azure csi support
+        cp /pkg/files/66-azure.rules /rootfs/usr/lib/udev/rules.d/66-azure.rules
+    test:
+      - |
+        fhs-validator /rootfs
+    sbom:
+      outputPath: /rootfs/usr/share/spdx/systemd.spdx.json
+      version: {{ .systemd_version }}
+      cpes:
+        - cpe:2.3:a:systemd_project:systemd:{{ .systemd_version }}:*:*:*:*:*:*:*
+      licenses:
+        - GPL-2.0-or-later
+        - LGPL-2.1-or-later
+        - BSD-3-Clause
+        - CC0-1.0
+finalize:
+  - from: /rootfs
+    to: /

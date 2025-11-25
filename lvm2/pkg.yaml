@@ -1,0 +1,77 @@
+name: lvm2
+variant: scratch
+shell: /bin/bash
+dependencies:
+  - stage: base
+  - stage: libaio
+  - stage: systemd-udevd
+steps:
+  - sources:
+      - url: https://mirrors.kernel.org/sourceware/lvm2/LVM2.{{ .lvm2_version | replace "_" "." }}.tgz
+        destination: lvm2.tar.gz
+        sha256: "{{ .lvm2_sha256 }}"
+        sha512: "{{ .lvm2_sha512 }}"
+    env:
+      LIBS: -lcap
+    prepare:
+      - |
+        tar -xzf lvm2.tar.gz --strip-components=1
+
+        patch -p1 < /pkg/patches/includes.patch
+        patch -p0 -l < /pkg/patches/fix-stdio-usage.patch
+        patch -p0 < /pkg/patches/mlockall-default-config.patch
+
+        export PKG_CONFIG_PATH=/usr/lib/pkgconfig
+
+        ./configure \
+             --with-default-run-dir=/run/lvm \
+             --with-default-locking-dir=/run/lock/lvm \
+             --with-thin=internal \
+             --with-cache=none \
+             --disable-udev-systemd-background-jobs \
+             --with-systemdsystemunitdir=/dev/null \
+             --localstatedir=/var \
+             --disable-nls \
+             --disable-readline \
+             --disable-selinux \
+             --enable-cmdlib \
+             --enable-pkgconfig \
+             --enable-udev_sync \
+             --enable-udev_rules \
+             --enable-static_link \
+             --prefix=/usr \
+             --sbindir=/usr/bin \
+             --with-staticdir=/usr/bin \
+             --with-usrsbindir=/usr/bin \
+             --with-udev-prefix=/usr \
+             MODPROBE_CMD=/usr/bin/modprobe
+    build:
+      - |
+        make -j $(nproc)
+    install:
+      - |
+        make DESTDIR=/rootfs install
+
+        # man
+        rm -r /rootfs/usr/share
+        # LVM activation is handled by Talos itself
+        rm -f /rootfs/usr/lib/udev/rules.d/69-dm-lvm.rules
+      - |
+        # remove all shell scripts
+        find /rootfs/usr/bin -type f -perm /111 -exec grep -slIE '^#!' {} + | tee /dev/stderr | xargs rm
+    test:
+      - |
+        fhs-validator /rootfs
+    sbom:
+      outputPath: /rootfs/usr/share/spdx/lvm2.spdx.json
+      version: {{ .lvm2_version | replace "_" "." }}
+      cpes:
+        - cpe:2.3:a:heinz_mauelshagen:lvm2:{{ .lvm2_version | replace "_" "." }}:*:*:*:*:*:*:*
+        - cpe:2.3:a:redhat:lvm2:{{ .lvm2_version | replace "_" "." }}:*:*:*:*:*:*:*
+      licenses:
+        - LGPL-2.1-only
+        - GPL-2.0-only
+        - BSD-2-Clause
+finalize:
+  - from: /rootfs
+    to: /

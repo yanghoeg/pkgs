@@ -1,0 +1,17 @@
+name: sd-boot
+variant: scratch
+shell: /bin/bash
+dependencies:
+  - stage: base
+  - stage: systemd
+steps:
+  - install:
+    - |
+      cd /tmp/systemd
+      mkdir -p /rootfs/
+
+      cp build/src/boot/*.efi /rootfs/
+      cp build/src/boot/*.efi.stub /rootfs/
+finalize:
+  - from: /rootfs
+    to: /

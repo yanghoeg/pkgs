@@ -1,0 +1,163 @@
+---
+kind: pkgfile.Build
+spec:
+  targets:
+    # - non-related to the kernel, in alphabetical order
+    - apparmor
+    - ca-certificates
+    - cni
+    - containerd
+    - cpio
+    - cryptsetup
+    - dosfstools
+    - e2fsprogs
+    - fhs
+    - flannel-cni
+    - glib
+    - grub
+    - ipmitool
+    - iptables
+    - ipxe
+    - kmod
+    - libaio
+    - libattr
+    - libburn
+    - libcap
+    - libinih
+    - libisoburn
+    - libisofs
+    - libjson-c
+    - liblzma
+    - libmnl
+    - libnftnl
+    - libpopt
+    - libseccomp
+    - libselinux
+    - libsepol
+    - liburcu
+    - linux-firmware
+    - lvm2
+    - mtools
+    - musl
+    - nftables
+    - openssl
+    - open-vmdk
+    - pcre2
+    - pigz
+    - qemu-tools
+    - runc
+    - sd-boot
+    - socat
+    - squashfs-tools
+    - systemd-udevd
+    - talosctl-cni-bundle
+    - tar
+    - util-linux
+    - xfsprogs
+    - xz
+    - zlib
+    - zstd
+    # - kernel & dependent packages (out of tree kernel modules)
+    #   kernel first, then packages in alphabetical order
+    - kernel
+    - drbd-pkg
+    - ena-pkg
+    - gasket-driver-pkg
+    - hailort-pkg
+    - nvidia-open-gpu-kernel-modules-lts-pkg
+    - nvidia-open-gpu-kernel-modules-production-pkg
+    - tenstorrent-pkg
+    - xdma-driver-pkg
+    - zfs-pkg
+  additionalTargets:
+    nonfree:
+      - nonfree-kmod-nvidia-lts-pkg
+      - nonfree-kmod-nvidia-production-pkg
+  reproducibleTargetName: reproducibility
+---
+kind: auto.CustomSteps
+spec:
+  steps:
+    - name: kernel-olddefconfig
+      toplevel: true
+    - name: kernel-%
+      toplevel: true
+    - name: check-dirty
+      toplevel: true
+---
+kind: custom.Step
+name: kernel-olddefconfig
+spec:
+  makefile:
+    enabled: true
+    script:
+      - |
+        @$(MAKE) local-kernel-build TARGET_ARGS="--build-arg=KERNEL_TARGET=olddefconfig" PLATFORM=linux/amd64 DEST="kernel/build"
+        @$(MAKE) local-kernel-build TARGET_ARGS="--build-arg=KERNEL_TARGET=olddefconfig" PLATFORM=linux/arm64 DEST="kernel/build"
+  ghaction:
+    enabled: true
+    condition: on-pull-request
+---
+kind: custom.Step
+name: kernel-%
+spec:
+  makefile:
+    enabled: true
+    script:
+      - |
+        for platform in $(shell echo $(PLATFORM) | tr "," " "); do \
+          arch=`basename $$platform` ; \
+          $(MAKE) docker-kernel-prepare PLATFORM=$$platform BUILDKIT_MULTI_PLATFORM=0 TARGET_ARGS="--tag=$(REGISTRY)/$(USERNAME)/kernel:$(TAG)-$$arch --load"; \
+          docker run --rm -it --entrypoint=/bin/bash -w /src -v $$PWD/kernel/build/config-$$arch:/host/.hostconfig $(REGISTRY)/$(USERNAME)/kernel:$(TAG)-$$arch -c 'cp /host/.hostconfig .config && make $* && cp .config /host/.hostconfig'; \
+        done
+---
+kind: custom.Step
+name: check-dirty
+spec:
+  makefile:
+    enabled: true
+    phony: true
+    script:
+      - |
+        @if test -n "`git status --porcelain`"; then echo "Source tree is dirty"; git status; git diff; exit 1 ; fi
+  ghaction:
+    enabled: true
+    condition: on-pull-request
+---
+kind: common.Renovate
+spec:
+  packageRules:
+    - matchPackageNames:
+        - git://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git
+      allowedVersions: "<= 6.17"
+    - matchPackageNames:
+        - ipmitool/ipmitool
+        - git://sourceware.org/git/lvm2.git
+      versioning: 'regex:^(?<major>\d+)_(?<minor>\d+)_?(?<patch>\d+)?$'
+    - matchPackageNames:
+        - git://git.kernel.org/pub/scm/linux/kernel/git/firmware/linux-firmware.git
+      versioning: 'regex:^(?<major>\d{4})(?<minor>\d{2})(?<patch>\d{2})\.?(?<build>\d+)?$'
+    - matchPackageNames:
+        - nvidia/open-gpu-kernel-modules
+        - dosfstools/dosfstools
+        - git://git.savannah.gnu.org/grub.git
+        - https://pagure.io/libaio.git
+        - rpm-software-management/popt
+        - git://git.liburcu.org/userspace-rcu.git
+        - madler/pigz
+      versioning: 'regex:^(?<major>\d+)\.(?<minor>\d+)\.?(?<patch>\d+)?$'
+    - matchPackageNames:
+        - benhoyt/inih
+        - systemd/systemd
+        - tenstorrent/tt-kmd
+      versioning: 'regex:^(?<major>\d+)\.?(?<minor>\d+)?\.?(?<patch>\d+)?$'
+    - matchPackageNames:
+        - git://repo.or.cz/socat.git
+        - json-c/json-c
+      versioning: 'regex:^(?<major>\d+)\.(?<minor>\d+)\.?(?<patch>\d+)?\.?(?<build>\d+)?$'
+    - matchPackageNames:
+        - openzfs/zfs
+      versioning: 'regex:^(?<major>\d+)\.(?<minor>\d+)\.?(?<patch>[0-9]{1}[0-8]{0,1})?$'
+    - matchPackageNames:
+        - flannel-io/cni-plugin
+      versioning: 'regex:^v(?<major>\d+)\.(?<minor>\d+)\.?(?<patch>\d+)?\.?-flannel(?<build>\d+)?$'

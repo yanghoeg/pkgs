@@ -1,0 +1,34 @@
+name: socat
+variant: scratch
+shell: /bin/bash
+dependencies:
+  - stage: base
+steps:
+  - sources:
+      - url: http://www.dest-unreach.org/socat/download/socat-{{ .socat_version }}.tar.gz
+        destination: socat.tar.gz
+        sha256: "{{ .socat_sha256 }}"
+        sha512: "{{ .socat_sha512 }}"
+    env:
+      BUILD_DATE: "1"
+    prepare:
+      - |
+        tar -xzf socat.tar.gz --strip-components=1
+
+        patch -p1 < /pkg/patches/use-linux-headers.patch
+
+        ./configure \
+            --prefix=/usr
+    build:
+      - |
+        make -j $(nproc)
+    install:
+      - |
+        make install DESTDIR=/rootfs
+        rm -rf /rootfs/usr/share
+    test:
+      - |
+        fhs-validator /rootfs
+finalize:
+  - from: /rootfs
+    to: /

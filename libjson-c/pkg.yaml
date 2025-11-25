@@ -1,0 +1,42 @@
+name: libjson-c
+variant: scratch
+shell: /bin/bash
+dependencies:
+  - stage: base
+steps:
+  - sources:
+      - url: https://s3.amazonaws.com/json-c_releases/releases/json-c-{{ .libjson_c_version }}.tar.gz
+        destination: json-c.tar.gz
+        sha256: "{{ .libjson_c_sha256 }}"
+        sha512: "{{ .libjson_c_sha512 }}"
+    prepare:
+      - |
+        tar -xzf json-c.tar.gz --strip-components=1
+
+        cmake -B build \
+          -DCMAKE_INSTALL_PREFIX=/usr \
+          -DCMAKE_INSTALL_LIBDIR=lib \
+          -DBUILD_SHARED_LIBS=True \
+          -DBUILD_STATIC_LIBS=True \
+          -DCMAKE_BUILD_TYPE=None \
+          -DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
+         .
+    build:
+      - |
+        make -C build -j $(nproc)
+    install:
+      - |
+        make -C build DESTDIR=/rootfs install
+    test:
+      - |
+        fhs-validator /rootfs
+    sbom:
+      outputPath: /rootfs/usr/share/spdx/libjson-c.spdx.json
+      version: {{ .libjson_c_version }}
+      cpes:
+        - cpe:2.3:a:json-c:json-c:{{ .libjson_c_version }}:*:*:*:*:*:*:*
+      licenses:
+        - MIT
+finalize:
+  - from: /rootfs
+    to: /

@@ -1,0 +1,38 @@
+name: libpopt
+variant: scratch
+shell: /bin/bash
+dependencies:
+  - stage: base
+steps:
+  - sources:
+      - url: http://ftp.rpm.org/popt/releases/popt-1.x/popt-{{ .libpopt_version }}.tar.gz
+        destination: popt.tar.gz
+        sha256: "{{ .libpopt_sha256 }}"
+        sha512: "{{ .libpopt_sha512 }}"
+    prepare:
+      - |
+        tar -xzf popt.tar.gz --strip-components=1
+
+        ./configure \
+          --prefix=/usr
+    build:
+      - |
+        make -j $(nproc)
+    install:
+      - |
+        make install DESTDIR=/rootfs
+        # locale
+        rm -r /rootfs/usr/share
+    test:
+      - |
+        fhs-validator /rootfs
+    sbom:
+      outputPath: /rootfs/usr/share/spdx/libpopt.spdx.json
+      version: {{ .libpopt_version }}
+      cpes:
+        - cpe:2.3:a:popt_project:popt:{{ .libpopt_version }}:*:*:*:*:*:*:*
+      licenses:
+        - MIT
+finalize:
+  - from: /rootfs
+    to: /

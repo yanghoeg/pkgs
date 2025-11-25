@@ -1,0 +1,55 @@
+name: e2fsprogs
+variant: scratch
+shell: /bin/bash
+dependencies:
+  - stage: base
+steps:
+  - sources:
+      - url: https://github.com/tytso/e2fsprogs/archive/refs/tags/{{ .e2fsprogs_version}}.tar.gz
+        destination: e2fsprogs.tar.gz
+        sha256: "{{ .e2fsprogs_sha256 }}"
+        sha512: "{{ .e2fsprogs_sha512 }}"
+    prepare:
+      - |
+        tar xf e2fsprogs.tar.gz --strip-components=1
+
+        ./configure \
+        --prefix=/usr \
+        --sbindir=/usr/bin \
+        --localstatedir=/run \
+        --enable-hardening \
+        --enable-elf-shlibs \
+        --enable-symlink-install \
+        --disable-fsck \
+        --disable-uuidd \
+        --disable-libuuid \
+        --disable-libblkid \
+        --disable-nls \
+        --disable-fuse2fs
+    build:
+      - |
+        make -j $(nproc) progs
+    install:
+      - |
+        make install DESTDIR=/rootfs-temp
+
+        mkdir -p /rootfs/usr/{bin,lib}
+
+        cp -r /rootfs-temp/usr/lib /rootfs/usr
+        cp -r /rootfs-temp/usr/bin/{e2fsck,fsck.*,mke2fs,mkfs.*,resize2fs,tune2fs} /rootfs/usr/bin
+    test:
+      - |
+        fhs-validator /rootfs
+    sbom:
+      outputPath: /rootfs/usr/share/spdx/e2fsprogs.spdx.json
+      version: {{ .e2fsprogs_version }}
+      cpes:
+        - cpe:2.3:a:e2fsprogs_project:e2fsprogs:{{ .e2fsprogs_version }}:*:*:*:*:*:*:*
+      licenses:
+        - GPL-2.0-only
+        - LGPL-2.0-only
+        - BSD-3-Clause
+        - MIT
+finalize:
+  - from: /rootfs
+    to: /

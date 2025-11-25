@@ -1,0 +1,33 @@
+name: libburn
+variant: scratch
+shell: /bin/bash
+dependencies:
+  - stage: base
+steps:
+  - sources:
+      - url: https://files.libburnia-project.org/releases/libburn-{{ .libburn_version }}.tar.gz
+        destination: libburn.tar.gz
+        sha256: "{{ .libburn_sha256 }}"
+        sha512: "{{ .libburn_sha512 }}"
+    prepare:
+      - |
+        tar -xzf libburn.tar.gz --strip-components=1
+
+        patch -p1 < /pkg/patches/gcc15.patch
+
+        ./configure \
+            --prefix=/usr
+    build:
+      - |
+        make -j $(nproc)
+    install:
+      - |
+        make install DESTDIR=/rootfs
+
+        rm -rf /rootfs/usr/share
+    test:
+      - |
+        fhs-validator /rootfs
+finalize:
+  - from: /rootfs
+    to: /

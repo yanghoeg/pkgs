@@ -1,0 +1,56 @@
+name: libattr
+variant: scratch
+shell: /bin/bash
+dependencies:
+  - stage: base
+steps:
+  - sources:
+      - url: http://archive.ubuntu.com/ubuntu/pool/main/a/attr/attr_{{ .libattr_version }}.orig.tar.xz
+        destination: attr.tar.xz
+        sha256: "{{ .libattr_sha256 }}"
+        sha512: "{{ .libattr_sha512 }}"
+    prepare:
+      - |
+        tar -xf attr.tar.xz --strip-components=1
+
+        patch -p1 < /pkg/patches/basename.patch
+
+        OPTIMIZER="$CFLAGS" \
+        DEBUG=-DNDEBUG \
+        INSTALL_USER=root \
+        INSTALL_GROUP=root \
+        ./configure \
+          --prefix=/ \
+          --exec-prefix=/ \
+          --sbindir=/usr/bin \
+          --bindir=/usr/bin \
+          --libdir=/usr/lib \
+          --libexecdir=/usr/lib \
+          --includedir=/usr/include \
+          --disable-manpages \
+          --disable-nls
+    build:
+      - |
+        make -j $(nproc)
+    install:
+      - |
+        make install DESTDIR=/rootfs
+
+        rm -rf /rootfs/share
+      - |
+        # remove all binaries
+        rm -r /rootfs/usr/bin
+    test:
+      - |
+        fhs-validator /rootfs
+    sbom:
+      outputPath: /rootfs/usr/share/spdx/libattr.spdx.json
+      version: {{ .libattr_version }}
+      cpes:
+        - cpe:2.3:a:attr_project:attr:{{ .libattr_version }}:*:*:*:*:*:*:*
+      licenses:
+        - LGPL-2.1-only
+        - GPL-2.0-only
+finalize:
+  - from: /rootfs
+    to: /

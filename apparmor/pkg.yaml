@@ -1,0 +1,49 @@
+name: apparmor
+variant: scratch
+shell: /bin/bash
+dependencies:
+  - stage: base
+steps:
+  - sources:
+      - url: https://gitlab.com/apparmor/apparmor/-/archive/{{ .apparmor_version }}/apparmor-{{ .apparmor_version }}.tar.gz
+        destination: apparmor.tar.gz
+        sha256: "{{ .apparmor_sha256 }}"
+        sha512: "{{ .apparmor_sha512 }}"
+    prepare:
+      - |
+        tar -xzf apparmor.tar.gz --strip-components=1
+
+        patch -p1 < /pkg/patches/basename.patch
+
+        cd libraries/libapparmor
+        ./autogen.sh
+
+        ./configure \
+          --disable-dependency-tracking \
+          --disable-man-pages \
+          --prefix=/usr
+    build:
+      - |
+        cd libraries/libapparmor
+        make -j $(nproc)
+
+        cd ../../parser
+        make arch -j $(nproc)
+    install:
+      - |
+        cd parser
+        DISTRO=unknown make install-arch DESTDIR=/rootfs SBINDIR=/rootfs/usr/bin
+    test:
+      - |
+        fhs-validator /rootfs
+    sbom:
+      outputPath: /rootfs/usr/share/spdx/apparmor.spdx.json
+      version: {{ .apparmor_version }}
+      cpes:
+        - cpe:2.3:a:apparmor:apparmor:{{ .apparmor_version }}:*:*:*:*:*:*:*
+        - cpe:2.3:a:canonical:apparmor:{{ .apparmor_version }}:*:*:*:*:*:*:*
+      licenses:
+        - GPL-2.0-or-later
+finalize:
+  - from: /rootfs
+    to: /

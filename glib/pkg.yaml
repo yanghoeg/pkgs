@@ -1,0 +1,44 @@
+name: glib
+variant: scratch
+shell: /bin/bash
+dependencies:
+  - stage: base
+steps:
+  - sources:
+      - url: https://download.gnome.org/sources/glib/{{ regexReplaceAll ".\\d+$" .glib_version "${1}" }}/glib-{{ .glib_version }}.tar.xz
+        destination: glib.tar.xz
+        sha256: "{{ .glib_sha256 }}"
+        sha512: "{{ .glib_sha512 }}"
+    prepare:
+      - |
+        tar -xf glib.tar.xz --strip-components=1
+
+        meson setup \
+          --prefix=/usr \
+          -Dman-pages=disabled \
+          -Ddocumentation=false \
+          -Dtests=false \
+          -Dlibmount=disabled \
+          -Dsysprof=disabled \
+          -Dnls=disabled \
+          -Dintrospection=disabled \
+          -Dglib_debug=disabled \
+          -Dbuildtype=release \
+          -Dlibelf=disabled \
+          -Dselinux=disabled \
+          _build
+    build:
+      - |
+        ninja -j $(nproc) -C _build
+    install:
+      - |
+        DESTDIR=/rootfs ninja -C _build install
+
+        # we only need the headers and libs
+        rm -rf /rootfs/usr/{bin,share}
+    test:
+      - |
+        fhs-validator /rootfs
+finalize:
+  - from: /rootfs
+    to: /

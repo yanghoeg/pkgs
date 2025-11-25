@@ -1,0 +1,45 @@
+name: dosfstools
+variant: scratch
+shell: /bin/bash
+dependencies:
+  - stage: base
+steps:
+  - sources:
+      - url: https://github.com/dosfstools/dosfstools/releases/download/v{{ .dosfstools_version }}/dosfstools-{{ .dosfstools_version }}.tar.gz
+        destination: dosfstools.tar.gz
+        sha256: "{{ .dosfstools_sha256 }}"
+        sha512: "{{ .dosfstools_sha512 }}"
+    prepare:
+      - |
+        tar -xzf dosfstools.tar.gz --strip-components=1
+
+        mkdir build
+        cd build
+
+        ../configure \
+        --prefix=/usr \
+        --sbindir=/usr/bin \
+        --enable-compat-symlinks
+    build:
+      - |
+        cd build
+        make -j $(nproc)
+    install:
+      - |
+        cd build
+        make install DESTDIR=/rootfs
+        # doc and man
+        rm -r /rootfs/usr/share
+    test:
+      - |
+        fhs-validator /rootfs
+    sbom:
+      outputPath: /rootfs/usr/share/spdx/dosfstools.spdx.json
+      version: {{ .dosfstools_version }}
+      cpes:
+        - cpe:2.3:a:dosfstools_project:dosfstools:{{ .dosfstools_version }}:*:*:*:*:*:*:*
+      licenses:
+        - GPL-3.0-or-later
+finalize:
+  - from: /rootfs
+    to: /

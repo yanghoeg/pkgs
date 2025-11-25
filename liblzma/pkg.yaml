@@ -1,0 +1,41 @@
+name: liblzma
+variant: scratch
+shell: /bin/bash
+dependencies:
+  - stage: base
+steps:
+  - sources:
+      - url: http://archive.ubuntu.com/ubuntu/pool/main/x/xz-utils/xz-utils_{{ .xz_version | replace "v" "" }}.orig.tar.xz
+        destination: xz.tar.xz
+        sha256: "{{ .xz_sha256 }}"
+        sha512: "{{ .xz_sha512 }}"
+    prepare:
+      - |
+        tar -xf xz.tar.xz --strip-components=1
+
+        ./configure \
+          --prefix=/usr \
+          --disable-rpath \
+          --disable-werror \
+          --disable-doc \
+          --disable-xz \
+          --disable-xzdec \
+          --disable-lzmadec \
+          --disable-lzmainfo \
+          --disable-lzma-links \
+          --disable-scripts \
+          --disable-static
+    build:
+      - |
+        make -j $(nproc)
+    install:
+      - |
+        make install DESTDIR=/rootfs
+        # locale
+        rm -r /rootfs/usr/share
+    test:
+      - |
+        fhs-validator /rootfs
+finalize:
+  - from: /rootfs
+    to: /

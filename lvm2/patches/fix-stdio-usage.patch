@@ -1,0 +1,44 @@
+diff --git lib/commands/toolcontext.c lib/commands/toolcontext.c
+index 30fc5d4f2..ad807c93a 100644
+--- lib/commands/toolcontext.c
++++ lib/commands/toolcontext.c
+@@ -1670,7 +1670,7 @@ struct cmd_context *create_toolcontext(unsigned is_clvmd,
+        reset_lvm_errno(1);
+
+        /* Set in/out stream buffering before glibc */
+-       if (set_buffering
++       if (0 && set_buffering
+            && !cmd->running_on_valgrind /* Skipping within valgrind execution. */
+ #ifdef SYS_gettid
+            /* For threaded programs no changes of streams */
+diff --git tools/lvmcmdline.c tools/lvmcmdline.c
+index 1e3547ed7..470fcaa87 100644
+--- tools/lvmcmdline.c
++++ tools/lvmcmdline.c
+@@ -3398,7 +3398,7 @@ static int _check_standard_fds(void)
+ 	int err = is_valid_fd(STDERR_FILENO);
+
+ 	if (!is_valid_fd(STDIN_FILENO) &&
+-	    !(stdin = fopen(_PATH_DEVNULL, "r"))) {
++	    !freopen(_PATH_DEVNULL, "r", stdin)) {
+ 		if (err)
+ 			perror("stdin stream open");
+ 		else
+@@ -3408,7 +3408,7 @@ static int _check_standard_fds(void)
+ 	}
+
+ 	if (!is_valid_fd(STDOUT_FILENO) &&
+-	    !(stdout = fopen(_PATH_DEVNULL, "w"))) {
++	    !freopen(_PATH_DEVNULL, "w", stdout)) {
+ 		if (err)
+ 			perror("stdout stream open");
+ 		/* else no stdout */
+@@ -3416,7 +3416,7 @@ static int _check_standard_fds(void)
+ 	}
+
+ 	if (!is_valid_fd(STDERR_FILENO) &&
+-	    !(stderr = fopen(_PATH_DEVNULL, "w"))) {
++	    !freopen(_PATH_DEVNULL, "w", stderr)) {
+ 		printf("stderr stream open: %s\n",
+ 		       strerror(errno));
+ 		return 0;

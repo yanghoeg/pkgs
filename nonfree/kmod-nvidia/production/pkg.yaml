@@ -1,0 +1,57 @@
+name: nonfree-kmod-nvidia-production-pkg
+variant: scratch
+shell: /bin/bash
+dependencies:
+  - stage: base
+  - stage: kernel-build
+steps:
+  - sources:
+    # {{ if eq .ARCH "aarch64" }} This in fact is YAML comment, but Go templating instruction is evaluated by bldr
+      - url: https://developer.download.nvidia.com/compute/nvidia-driver/redist/nvidia_driver/linux-sbsa/nvidia_driver-linux-sbsa-{{ .nvidia_driver_production_version }}-archive.tar.xz
+        destination: nvidia.tar.xz
+        sha256: "{{ .nvidia_driver_production_arm64_sha256 }}"
+        sha512: "{{ .nvidia_driver_production_arm64_sha512 }}"
+    # {{ else }} This in fact is YAML comment, but Go templating instruction is evaluated by bldr
+      - url: https://developer.download.nvidia.com/compute/nvidia-driver/redist/nvidia_driver/linux-x86_64/nvidia_driver-linux-x86_64-{{ .nvidia_driver_production_version }}-archive.tar.xz
+        destination: nvidia.tar.xz
+        sha256: "{{ .nvidia_driver_production_amd64_sha256 }}"
+        sha512: "{{ .nvidia_driver_production_amd64_sha512 }}"
+    # {{ end }} This in fact is YAML comment, but Go templating instruction is evaluated by bldr
+    env:
+      ARCH: {{ if eq .ARCH "aarch64"}}arm64{{ else if eq .ARCH "x86_64" }}x86_64{{ else }}unsupported{{ end }}
+    prepare:
+      - |
+        tar xf nvidia.tar.xz --strip-components=1
+    build:
+      - |
+        cd kernel
+
+        make -j $(nproc) SYSSRC=/src
+    install:
+      - |
+        cd kernel
+
+        mkdir -p /rootfs/usr/lib/modules/$(cat /src/include/config/kernel.release)/
+        cp /src/modules.order /rootfs/usr/lib/modules/$(cat /src/include/config/kernel.release)/
+        cp /src/modules.builtin /rootfs/usr/lib/modules/$(cat /src/include/config/kernel.release)/
+        cp /src/modules.builtin.modinfo /rootfs/usr/lib/modules/$(cat /src/include/config/kernel.release)/
+
+        make -j $(nproc) modules_install SYSSRC=/src INSTALL_MOD_PATH=/rootfs/usr INSTALL_MOD_DIR=extras INSTALL_MOD_STRIP=1
+    test:
+      - |
+        # https://www.kernel.org/doc/html/v4.15/admin-guide/module-signing.html#signed-modules-and-stripping
+        find /rootfs/usr/lib/modules -name '*.ko' -exec grep -FL '~Module signature appended~' {} \+
+      - |
+        fhs-validator /rootfs
+    sbom:
+      outputPath: /rootfs/usr/share/spdx/kmod-nvidia-production.spdx.json
+      version: {{ .nvidia_driver_production_version }}
+      cpes:
+        - cpe:2.3:a:nvidia:gpu_display_driver:{{ .nvidia_driver_production_version }}:*:*:*:*:*:*:*
+        - cpe:2.3:a:nvidia:gpu_display_driver:{{ .nvidia_driver_production_version }}:*:*:*:*:linux_kernel:*:*
+      purl: pkg:nvidia/gpu-display-driver@{{ .nvidia_driver_production_version }}
+      licenses:
+        - CUSTOM
+finalize:
+  - from: /rootfs
+    to: /

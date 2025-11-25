@@ -1,0 +1,49 @@
+name: cryptsetup
+variant: scratch
+shell: /bin/bash
+dependencies:
+  - stage: base
+  - stage: systemd-udevd # dependency for libdevmapper
+  - stage: lvm2 # libdevmapper
+  - stage: libpopt
+  - stage: libjson-c
+steps:
+  - sources:
+      - url: https://www.kernel.org/pub/linux/utils/cryptsetup/v{{ regexReplaceAll ".\\d+$" .cryptsetup_version "${1}" }}/cryptsetup-{{ .cryptsetup_version }}.tar.gz
+        destination: cryptsetup.tar.gz
+        sha256: "{{ .cryptsetup_sha256 }}"
+        sha512: "{{ .cryptsetup_sha512 }}"
+    env:
+      PKG_CONFIG_PATH: /usr/lib/pkgconfig
+      LIBS: -lcap
+    prepare:
+      - |
+        tar -xzf cryptsetup.tar.gz --strip-components=1
+
+        ./configure \
+          --prefix=/usr \
+          --sbindir=/usr/bin \
+          --disable-asciidoc \
+          --disable-ssh-token \
+          --enable-static-cryptsetup || (cat config.log; exit 1)
+    build:
+      - |
+        make -j $(nproc)
+    install:
+      - |
+        make install DESTDIR=/rootfs
+        # locale and man
+        rm -r /rootfs/usr/share
+    test:
+      - |
+        fhs-validator /rootfs
+    sbom:
+      outputPath: /rootfs/usr/share/spdx/cryptsetup.spdx.json
+      version: {{ .cryptsetup_version }}
+      cpes:
+        - cpe:2.3:a:cryptsetup_project:cryptsetup:{{ .cryptsetup_version }}:*:*:*:*:*:*:*
+      licenses:
+        - GPL-2.0-or-later
+finalize:
+  - from: /rootfs
+    to: /

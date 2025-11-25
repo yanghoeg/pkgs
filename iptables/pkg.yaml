@@ -1,0 +1,67 @@
+name: iptables
+variant: scratch
+shell: /bin/bash
+dependencies:
+  - stage: base
+  - stage: libmnl
+  - stage: libnftnl
+steps:
+  - sources:
+      - url: https://www.netfilter.org/projects/iptables/files/iptables-{{ .iptables_version }}.tar.xz
+        destination: iptables.tar.xz
+        sha256: "{{ .iptables_sha256 }}"
+        sha512: "{{ .iptables_sha512 }}"
+    prepare:
+      - |
+        tar -xf iptables.tar.xz --strip-components=1
+
+        patch -p1 < /pkg/patches/0001-fix-redefinition-on-musl.patch
+
+        export PKG_CONFIG_PATH=/usr/lib/pkgconfig
+
+        ./configure \
+        --prefix=/usr \
+        --libexecdir=/usr/libexec \
+        --disable-static \
+        --sbindir=/usr/bin \
+        --enable-libipq \
+        --with-xtlibdir=/usr/lib/xtables
+    build:
+      - |
+        make -j $(nproc)
+    install:
+      - |
+        make install DESTDIR=/rootfs
+      - |
+        # remove all shell scripts
+        find /rootfs/usr/bin -type f -perm /111 -exec grep -slIE '^#!' {} + | tee /dev/stderr | xargs rm
+      - |
+        # drop broken symlinks
+        find /rootfs/usr/bin -xtype l -print -delete
+      - |
+        # fix up symlinks which point to legacy version to point to nft version
+        for f in /rootfs/usr/bin/*; do
+          # if name doesn't contain 'legacy':
+          if [[ $f == *legacy* ]]; then
+            continue
+          fi
+
+          # if it's a symlink:
+          if [ -L "$f" ]; then
+            ln -sf $(readlink $f | sed 's/legacy/nft/') $f
+          fi
+        done
+        rm -r /rootfs/usr/share/man
+    test:
+      - |
+        fhs-validator /rootfs
+    sbom:
+      outputPath: /rootfs/usr/share/spdx/iptables.spdx.json
+      version: {{ .iptables_version }}
+      cpes:
+        - cpe:2.3:a:netfilter:iptables:{{ .iptables_version }}:*:*:*:*:*:*:*
+      licenses:
+        - GPL-2.0-only
+finalize:
+  - from: /rootfs
+    to: /

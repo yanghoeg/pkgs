@@ -1,0 +1,52 @@
+name: xfsprogs
+variant: scratch
+shell: /bin/bash
+dependencies:
+  - stage: base
+  - stage: libattr
+  - stage: libinih
+  - stage: liburcu
+steps:
+  - sources:
+      - url: https://mirrors.edge.kernel.org/pub/linux/utils/fs/xfs/xfsprogs/xfsprogs-{{ .xfsprogs_version }}.tar.xz
+        destination: xfsprogs.tar.xz
+        sha256: "{{ .xfsprogs_sha256 }}"
+        sha512: "{{ .xfsprogs_sha512 }}"
+    env:
+      DEBUG: "-DNDEBUG"
+      OPTIMIZER: "-flto=auto"
+      CFLAGS: "-g0 -Os -DOVERRIDE_SYSTEM_STATX -DSTATX__RESERVED=0x80000000U"
+    prepare:
+      - |
+        tar -xJf xfsprogs.tar.xz --strip-components=1
+
+        ./configure \
+        --prefix=/usr \
+        --sbindir=/usr/bin \
+        --enable-lib64=no \
+        --enable-gettext=no
+    build:
+      - |
+        make -j $(nproc)
+    install:
+      - |
+        make install DESTDIR=/rootfs
+        rm -rf /rootfs/usr/share/man
+        rm -rf /rootfs/usr/share/doc
+      - |
+        # remove all shell scripts
+        find /rootfs/usr/bin -type f -perm /111 -exec grep -slIE '^#!' {} + | tee /dev/stderr | xargs rm
+    test:
+      - |
+        fhs-validator /rootfs
+    sbom:
+      outputPath: /rootfs/usr/share/spdx/xfsprogs.spdx.json
+      version: {{ .xfsprogs_version }}
+      cpes:
+        - cpe:2.3:a:sgi:xfsprogs:{{ .xfsprogs_version }}:*:*:*:*:*:*:*
+      licenses:
+        - GPL-2.0-only
+        - LGPL-2.1-only
+finalize:
+  - from: /rootfs
+    to: /

@@ -1,0 +1,94 @@
+name: reproducibility
+variant: scratch
+dependencies:
+  # These packages are pulled through from tools, so they are not tested here.
+  # - stage: base
+  # - stage: ca-certificates
+  # - stage: cpio
+  # - stage: kmod
+  # - stage: libcap
+  # - stage: libselinux
+  # - stage: libsepol
+  # - stage: musl
+  # - stage: openssl
+  # - stage: pcre2
+  # - stage: squashfs-tools
+  # - stage: tar
+  # - stage: util-linux
+  # - stage: xz
+  # - stage: zstd
+  # linux-firmware can be ignored from reproducibility test since it's a tarball downloaded and extracted (no build happens)
+  # - stage: linux-firmware
+  #
+  # FHS must be the first for symlinks
+  - stage: fhs
+    to: /rootfs
+  - stage: apparmor
+    to: /rootfs
+  - stage: cni
+    to: /rootfs
+  - stage: containerd
+    to: /rootfs
+  - stage: cryptsetup
+    to: /rootfs
+  - stage: dosfstools
+    to: /rootfs
+  - stage: e2fsprogs
+    to: /rootfs
+  - stage: flannel-cni
+    to: /rootfs
+  - stage: grub
+    to: /rootfs
+  - stage: ipmitool
+    to: /rootfs
+  - stage: iptables
+    to: /rootfs
+  - stage: ipxe
+    to: /rootfs
+  - stage: libaio
+    to: /rootfs
+  - stage: libattr
+    to: /rootfs
+  - stage: libburn
+    to: /rootfs
+  - stage: libinih
+    to: /rootfs
+  - stage: libisoburn
+    to: /rootfs
+  - stage: libisofs
+    to: /rootfs
+  - stage: libjson-c
+    to: /rootfs
+  - stage: liblzma
+    to: /rootfs
+  - stage: libmnl
+    to: /rootfs
+  - stage: libnftnl
+    to: /rootfs
+  - stage: libpopt
+    to: /rootfs
+  - stage: libseccomp
+    to: /rootfs
+  - stage: liburcu
+    to: /rootfs
+  - stage: systemd-udevd
+    to: /rootfs
+  - stage: lvm2
+    to: /rootfs
+  - stage: mtools
+    to: /rootfs
+  - stage: pigz
+    to: /rootfs
+  - stage: qemu-tools
+    to: /rootfs
+  - stage: runc
+    to: /rootfs
+  - stage: sd-boot
+    to: /rootfs
+  - stage: socat
+    to: /rootfs
+  - stage: xfsprogs
+    to: /rootfs
+finalize:
+  - from: /rootfs
+    to: /

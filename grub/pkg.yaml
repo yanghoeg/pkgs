@@ -1,0 +1,75 @@
+name: grub
+variant: scratch
+shell: /bin/bash
+dependencies:
+  - stage: base
+steps:
+  - sources:
+      - url: https://ftpmirror.gnu.org/gnu/grub/grub-{{ .grub_version }}.tar.xz
+        destination: grub.tar.xz
+        sha256: "{{ .grub_sha256 }}"
+        sha512: "{{ .grub_sha512 }}"
+    env: # disable any optimizations, as this breaks GRUB build
+      CFLAGS: ""
+      CXXFLAGS: ""
+      LDFLAGS: ""
+    prepare:
+      - |
+        tar -xJf grub.tar.xz --strip-components=1
+
+        # Apply patches
+        for patch in /pkg/patches/*.patch; do
+          echo "Applying patch: $patch"
+          patch -p1 < $patch
+        done
+
+        PYTHON=python3 bash ./autogen.sh
+
+        touch ./grub-core/extra_deps.lst
+    build:
+      - |
+        case "${ARCH}" in
+        x86_64)
+          flavors="efi bios"
+          ;;
+        *)
+          flavors="efi"
+          ;;
+        esac
+
+        for flavor in $flavors; do
+          mkdir "build-${flavor}"
+          cd "build-${flavor}"
+
+          case "${flavor}" in
+            bios)
+              flags="--with-platform=pc" ;;
+            efi)
+              flags="--with-platform=efi --disable-efiemu" ;;
+          esac
+
+          ../configure --prefix=/usr \
+                    --sbindir=/usr/bin \
+                    --sysconfdir=/etc \
+                    --mandir=/usr/share/man \
+                    --localstatedir=/var \
+                    ${flags} \
+                    --disable-nls \
+                    --disable-werror
+
+          make -j $(nproc)
+
+          make install-strip DESTDIR=/rootfs
+
+          cd ..
+        done
+    install:
+      - |
+        rm -f /rootfs/usr/lib/charset.alias
+        rm -r /rootfs/usr/share/info
+    test:
+      - |
+        fhs-validator /rootfs
+finalize:
+  - from: /rootfs
+    to: /

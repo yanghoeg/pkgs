@@ -1,0 +1,42 @@
+name: containerd
+variant: scratch
+shell: /bin/bash
+dependencies:
+  - stage: base
+steps:
+  - sources:
+        # sync with version and revision in build
+      - url: https://github.com/containerd/containerd/archive/refs/tags/{{ .containerd_version }}.tar.gz
+        destination: containerd.tar.gz
+        sha256: "{{ .containerd_sha256 }}"
+        sha512: "{{ .containerd_sha512 }}"
+    env:
+      PKG_CONFIG_PATH: /usr/lib/pkgconfig
+      CC: gcc
+      BUILDTAGS: 'no_aufs no_btrfs no_devmapper no_systemd no_zfs'
+    prepare:
+      - |
+        tar -xzf containerd.tar.gz --strip-components=1
+    build:
+      - |
+        make VERSION={{ .containerd_version }} REVISION={{ .containerd_ref }} STATIC=1
+    install:
+      - |
+        mkdir -p /rootfs/usr/bin
+        make install PREFIX=/usr DESTDIR=/rootfs
+
+        rm /rootfs/usr/bin/containerd-stress
+    test:
+      - |
+        fhs-validator /rootfs
+    sbom:
+      outputPath: /rootfs/usr/share/spdx/containerd.spdx.json
+      version: {{ .containerd_version }}
+      cpes:
+        - cpe:2.3:a:containerd:containerd:{{ .containerd_version }}:*:*:*:*:*:*:*
+        - cpe:2.3:a:linuxfoundation:containerd:{{ .containerd_version }}:*:*:*:*:*:*:*
+      licenses:
+        - Apache-2.0
+finalize:
+  - from: /rootfs
+    to: /

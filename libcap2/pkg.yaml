@@ -1,0 +1,18 @@
+name: libcap
+variant: scratch
+shell: /bin/bash
+dependencies:
+  - stage: base
+  - image: "{{ .TOOLS_PREFIX }}tools-libcap:{{ .TOOLS_REV }}"
+    to: /rootfs
+steps:
+  - install:
+      - |
+        # remove all binaries
+        rm -r /rootfs/usr/bin
+  - test:
+      - |
+        fhs-validator /rootfs
+finalize:
+  - from: /rootfs
+    to: /
