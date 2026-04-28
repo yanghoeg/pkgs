@@ -1,0 +1,44 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: YANG JOO WOONG <yjw.cpa@gmail.com>
+Date: Mon, 27 Apr 2026 22:00:00 +0900
+Subject: [PATCH] drm/amd/pm: Update SMU14_0_2 driver if version to 0x33 for R9700
+
+The SMU firmware on retail Radeon AI PRO R9700 (gfx1201, 0x1002:0x7551)
+ships with interface version 0x33 (51), but the mainline driver hardcodes
+0x2E (46). This results in BACO entry failures, fan control silently
+ignored (109°C reached without fan response), and idle power stuck at
++220W per node.
+
+Reported in:
+  - https://github.com/ROCm/ROCm/issues/5908
+  - https://github.com/ROCm/ROCm/issues/6101
+  - https://github.com/ROCm/ROCm/issues/6078
+
+Tested on: Radeon AI PRO R9700, Talos Linux v1.12.7 (kernel 6.18.24)
+
+This is a minimal 1-line change. The message ID mapping was already
+extended for v51 compatibility by commit 37a45fb8db26 ("drm/amd/pm:
+update message interface for smu v14.0.2/3"). SmuMetrics_t struct
+verification is recommended but mismatch is non-fatal in this scenario
+(metrics may show stale values).
+
+Signed-off-by: YANG JOO WOONG <yjw.cpa@gmail.com>
+---
+ drivers/gpu/drm/amd/pm/swsmu/inc/smu_v14_0.h | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/drivers/gpu/drm/amd/pm/swsmu/inc/smu_v14_0.h b/drivers/gpu/drm/amd/pm/swsmu/inc/smu_v14_0.h
+index aaaaaaaaaaaa..bbbbbbbbbbbb 100644
+--- a/drivers/gpu/drm/amd/pm/swsmu/inc/smu_v14_0.h
++++ b/drivers/gpu/drm/amd/pm/swsmu/inc/smu_v14_0.h
+@@ -28,7 +28,7 @@
+ #define SMU14_DRIVER_IF_VERSION_INV 0xFFFFFFFF
+ #define SMU14_DRIVER_IF_VERSION_SMU_V14_0_0 0x7
+ #define SMU14_DRIVER_IF_VERSION_SMU_V14_0_1 0x6
+-#define SMU14_DRIVER_IF_VERSION_SMU_V14_0_2 0x2E
++#define SMU14_DRIVER_IF_VERSION_SMU_V14_0_2 0x33
+
+ #define FEATURE_MASK(feature) (1ULL << feature)
+
+--
+2.45.0
