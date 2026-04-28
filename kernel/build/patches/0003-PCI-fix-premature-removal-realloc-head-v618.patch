@@ -33,15 +33,13 @@ Tested on: Talos Linux v1.12.7 (kernel 6.18.24)
 
 Signed-off-by: YANG JOO WOONG <yjw.cpa@gmail.com>
 ---
- drivers/pci/setup-bus.c | 24 ++++++++++++------------
- 1 file changed, 12 insertions(+), 12 deletions(-)
+ drivers/pci/setup-bus.c | 16 ++++++++--------
+ 1 file changed, 8 insertions(+), 8 deletions(-)
 
 diff --git a/drivers/pci/setup-bus.c b/drivers/pci/setup-bus.c
-index aaaaaaaaaaaa..bbbbbbbbbbbb 100644
 --- a/drivers/pci/setup-bus.c
 +++ b/drivers/pci/setup-bus.c
-@@ -422,14 +422,7 @@ static void reassign_resources_sorted(struct list_head *realloc_head,
- 		res = add_res->res;
+@@ -423,14 +423,6 @@ static void reassign_resources_sorted(struct list_head *realloc_head,
  		dev = add_res->dev;
  		idx = pci_resource_num(dev, res);
 
@@ -56,8 +54,7 @@ index aaaaaaaaaaaa..bbbbbbbbbbbb 100644
  		/* Skip this resource if not found in head list */
  		list_for_each_entry(dev_res, head, list) {
  			if (dev_res->res == res) {
- 				found_match = true;
-@@ -439,6 +432,13 @@ static void reassign_resources_sorted(struct list_head *realloc_head,
+@@ -441,6 +433,14 @@ static void reassign_resources_sorted(struct list_head *realloc_head,
  		if (!found_match) /* Just skip */
  			continue;
 
@@ -72,5 +69,3 @@ index aaaaaaaaaaaa..bbbbbbbbbbbb 100644
  		res_name = pci_resource_name(dev, idx);
  		add_size = add_res->add_size;
  		align = add_res->min_align;
---
-2.45.0
