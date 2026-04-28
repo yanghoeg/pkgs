@@ -1,0 +1,76 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: YANG JOO WOONG <yjw.cpa@gmail.com>
+Date: Tue, 28 Apr 2026 17:00:00 +0900
+Subject: [PATCH] PCI: Fix premature removal from realloc_head list during
+ resource assignment (v6.18 port)
+
+v6.18 port of mainline commit 1ee4716a5a28 by Ilpo Järvinen
+("PCI: Fix premature removal from realloc_head list during resource
+assignment"), 2026-03-13.
+
+reassign_resources_sorted() checks two things:
+  (a) resource assignment failure for mandatory resources
+  (b) resource not in current head list (skip)
+
+(a) was checked before (b), but (b) implies (a). When the resource
+is not in head list, only (a) was triggered and the resource was
+removed from realloc_head, losing optional size info needed for
+later stages.
+
+This caused dmesg patterns we saw on yw3 (X99-E WS dual R9700):
+  amdgpu 0000:0d:00.0: BAR 0 [mem size 0x800000000 64bit pref]: can't assign; no space
+  amdgpu 0000:0d:00.0: BAR 0 [mem size 0x800000000 64bit pref]: failed to assign
+  amdgpu 0000:0d:00.0: BAR 0 0x380000000000-0x38000fffffff: assigned (256MB fallback)
+
+Fix: swap order so (b) is checked first.
+
+mainline commit uses res_to_dev_res() helper which doesn't exist in
+v6.18. v6.18 has the same logic as inline list_for_each_entry +
+found_match boolean. The fix is functionally equivalent: move the
+"not in head list" check above the "mandatory failure" check.
+
+Tested on: Talos Linux v1.12.7 (kernel 6.18.24)
+
+Signed-off-by: YANG JOO WOONG <yjw.cpa@gmail.com>
+---
+ drivers/pci/setup-bus.c | 24 ++++++++++++------------
+ 1 file changed, 12 insertions(+), 12 deletions(-)
+
+diff --git a/drivers/pci/setup-bus.c b/drivers/pci/setup-bus.c
+index aaaaaaaaaaaa..bbbbbbbbbbbb 100644
+--- a/drivers/pci/setup-bus.c
++++ b/drivers/pci/setup-bus.c
+@@ -422,14 +422,7 @@ static void reassign_resources_sorted(struct list_head *realloc_head,
+ 		res = add_res->res;
+ 		dev = add_res->dev;
+ 		idx = pci_resource_num(dev, res);
+
+-		/*
+-		 * Skip resource that failed the earlier assignment and is
+-		 * not optional as it would just fail again.
+-		 */
+-		if (!res->parent && resource_size(res) &&
+-		    !pci_resource_is_optional(dev, idx))
+-			goto out;
+-
+ 		/* Skip this resource if not found in head list */
+ 		list_for_each_entry(dev_res, head, list) {
+ 			if (dev_res->res == res) {
+ 				found_match = true;
+@@ -439,6 +432,13 @@ static void reassign_resources_sorted(struct list_head *realloc_head,
+ 		if (!found_match) /* Just skip */
+ 			continue;
+
++		/*
++		 * Skip resource that failed the earlier assignment and is
++		 * not optional as it would just fail again.
++		 */
++		if (!res->parent && resource_size(res) &&
++		    !pci_resource_is_optional(dev, idx))
++			goto out;
++
+ 		res_name = pci_resource_name(dev, idx);
+ 		add_size = add_res->add_size;
+ 		align = add_res->min_align;
+--
+2.45.0
