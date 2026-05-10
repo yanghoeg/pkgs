@@ -8,6 +8,8 @@ hardware needs them.
 | Patch file | Description | Upstream | Status |
 |---|---|---|---|
 | `0001-amdgpu-smu14-0x33-driver-if-for-r9700.patch` | RDNA 4 R9700 SMU14_0_2 driver if 0x33. Idle power 350 W → 138 W per GPU | agd5f staging, mainline in progress | applied |
+| `0004-drm-amdgpu-skip-shutdown-to-prevent-rdna4-poweroff-hang.patch` | Skip amdgpu_pci_shutdown — RDNA4 FW hangs on suspend during poweroff | not upstreamable (workaround) | applied |
+| `0005-mlx5-skip-shutdown-to-prevent-cx5-poweroff-hang.patch` | Skip mlx5 shutdown — CX5 FW hangs with SR-IOV VFs during poweroff | not upstreamable (workaround) | applied |
 
 ## Build
 
