@@ -1,0 +1,99 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: YANG JOO WOONG <yjw.cpa@gmail.com>
+Date: Thu, 5 Jun 2026 12:00:00 +0900
+Subject: [PATCH] PCI: Add pcie_acs_override boot parameter for P2P through
+ PLX switches
+
+X99-E WS uses PLX PEX8747 switches whose ACS (Access Control Services)
+blocks peer-to-peer DMA between GPUs on different downstream ports.
+The kernel P2PDMA subsystem checks ACS independently of IOMMU mode, so
+even with iommu=pt the pci_p2pdma_distance() rejects the P2P path:
+
+  amdgpu: PCIe P2P access from peer device ... is not supported by the chipset
+
+Add a boot parameter 'pcie_acs_override=' accepting comma-separated
+values:
+
+  downstream    - override ACS on PCIe switch downstream ports
+  multifunction - override ACS on multifunction endpoints
+
+When the override matches, the quirk reports all requested ACS flags
+as satisfied, allowing the P2PDMA subsystem to approve P2P paths
+through the affected bridges.
+
+WARNING: This disables ACS isolation which is a security boundary when
+IOMMU is in strict mode.  Only safe with iommu=pt (passthrough) where
+DMA isolation is already disabled.
+
+Based on the well-known out-of-tree ACS override design originally
+proposed for VFIO GPU passthrough use cases.
+
+[YANG JOO WOONG: written for v6.18.24, X99 PLX PEX8747 + RDNA4 GPU P2P]
+
+Signed-off-by: YANG JOO WOONG <yjw.cpa@gmail.com>
+---
+ drivers/pci/quirks.c | 46 ++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 46 insertions(+)
+
+diff --git a/drivers/pci/quirks.c b/drivers/pci/quirks.c
+--- a/drivers/pci/quirks.c
++++ b/drivers/pci/quirks.c
+@@ -5059,6 +5059,50 @@ static int  pci_quirk_wangxun_nic_acs(struct pci_dev *dev, u16 acs_flags)
+ 	return false;
+ }
+
++static bool acs_override_downstream;
++static bool acs_override_multifunction;
++
++static int __init pcie_acs_override_setup(char *p)
++{
++	if (!p)
++		return -EINVAL;
++
++	while (*p) {
++		if (!strncmp(p, "downstream", 10)) {
++			acs_override_downstream = true;
++		} else if (!strncmp(p, "multifunction", 13)) {
++			acs_override_multifunction = true;
++		}
++		p += strcspn(p, ",");
++		if (*p == ',')
++			p++;
++	}
++
++	if (acs_override_downstream || acs_override_multifunction)
++		pr_warn("pcie_acs_override: ACS isolation disabled for%s%s\n",
++			acs_override_downstream ? " downstream-ports" : "",
++			acs_override_multifunction ? " multifunction" : "");
++
++	return 0;
++}
++early_param("pcie_acs_override", pcie_acs_override_setup);
++
++static int pci_quirk_acs_override(struct pci_dev *dev, u16 acs_flags)
++{
++	if (acs_override_downstream &&
++	    pci_pcie_type(dev) == PCI_EXP_TYPE_DOWNSTREAM)
++		return pci_acs_ctrl_enabled(acs_flags,
++			PCI_ACS_SV | PCI_ACS_TB | PCI_ACS_RR |
++			PCI_ACS_CR | PCI_ACS_UF | PCI_ACS_DT);
++
++	if (acs_override_multifunction && dev->multifunction)
++		return pci_acs_ctrl_enabled(acs_flags,
++			PCI_ACS_SV | PCI_ACS_TB | PCI_ACS_RR |
++			PCI_ACS_CR | PCI_ACS_UF | PCI_ACS_DT);
++
++	return -ENOTTY;
++}
++
+ static const struct pci_dev_acs_enabled {
+ 	u16 vendor;
+ 	u16 device;
+@@ -5227,6 +5271,8 @@ static const struct pci_dev_acs_enabled {
+ 	/* Wangxun nics */
+ 	{ PCI_VENDOR_ID_WANGXUN, PCI_ANY_ID, pci_quirk_wangxun_nic_acs },
++	/* pcie_acs_override boot parameter -- catch-all, must be last */
++	{ PCI_ANY_ID, PCI_ANY_ID, pci_quirk_acs_override },
+ 	{ 0 }
+ };
+
