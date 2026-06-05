@@ -1,0 +1,33 @@
+From: YANG JOO WOONG <yjw.cpa@gmail.com>
+Date: Thu, 5 Jun 2026 22:00:00 +0900
+Subject: [PATCH] PCI/P2PDMA: Add Intel Broadwell-EP to the whitelist
+
+Intel Broadwell-EP (Xeon E5 v4, device 0x6f00/0x6f01) supports P2P
+routing through the root complex, same as its predecessor Haswell-EP
+(0x2f00) and successor Skylake-E (0x2030). The omission from the
+whitelist is an oversight — NVIDIA SLI on X99 + PLX PEX8747 confirmed
+P2P DMA works on this platform.
+
+Add with REQ_SAME_HOST_BRIDGE flag consistent with Haswell-EP entry.
+
+Signed-off-by: YANG JOO WOONG <yjw.cpa@gmail.com>
+---
+ drivers/pci/p2pdma.c | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/drivers/pci/p2pdma.c b/drivers/pci/p2pdma.c
+index 1a20948..b2c3f4d 100644
+--- a/drivers/pci/p2pdma.c
++++ b/drivers/pci/p2pdma.c
+@@ -36,6 +36,9 @@ static const struct {
+ 	/* Intel Xeon E7 v3/Xeon E5 v3/Core i7 */
+ 	{PCI_VENDOR_ID_INTEL,	0x2f00, REQ_SAME_HOST_BRIDGE},
+ 	{PCI_VENDOR_ID_INTEL,	0x2f01, REQ_SAME_HOST_BRIDGE},
++	/* Intel Xeon E5 v4 (Broadwell-EP) */
++	{PCI_VENDOR_ID_INTEL,	0x6f00, REQ_SAME_HOST_BRIDGE},
++	{PCI_VENDOR_ID_INTEL,	0x6f01, REQ_SAME_HOST_BRIDGE},
+ 	/* Intel Skylake-E */
+ 	{PCI_VENDOR_ID_INTEL,	0x2030, 0},
+ 	{PCI_VENDOR_ID_INTEL,	0x2031, 0},
+--
+2.49.0
