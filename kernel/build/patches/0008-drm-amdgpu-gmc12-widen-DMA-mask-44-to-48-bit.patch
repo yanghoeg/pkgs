@@ -1,0 +1,45 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: YANG JOO WOONG <yjw.cpa@gmail.com>
+Date: Thu, 05 Jun 2026 00:00:00 +0900
+Subject: [PATCH] drm/amdgpu/gmc12: widen DMA mask from 44 to 48 bit
+
+RDNA4 (gfx1201) sets a 44-bit DMA mask via gmc_v12_0_sw_init().
+On X99 platforms (Broadwell-EP) the BIOS maps GPU BARs above 44-bit
+(e.g. 0x380000000000 ≈ 46 bit).  With iommu=pt the IOMMU performs no
+address translation, so amdgpu_device_is_peer_accessible() compares
+the raw BAR address against the DMA mask and rejects P2P because
+46 > 44.
+
+Widening to 48 bit (256 TB) covers all practical BAR placements while
+staying well within the GPU's internal VA width.  The GART/VMPT page
+tables are unaffected — they already use a 44-bit MC mask
+(AMDGPU_GMC_HOLE_MASK) which is independent of the DMA mask.
+
+Tested: dual Radeon AI PRO R9700 (gfx1201) on E5-2699v4 + X99-E WS,
+BARs at 0x380000000000 and 0x3C0000000000, iommu=pt restored.
+hipDeviceCanAccessPeer() returns 1, hipMemcpyPeer 10.2 GB/s through
+PLX PEX8747.
+
+Signed-off-by: YANG JOO WOONG <yjw.cpa@gmail.com>
+---
+ drivers/gpu/drm/amd/amdgpu/gmc_v12_0.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/drivers/gpu/drm/amd/amdgpu/gmc_v12_0.c b/drivers/gpu/drm/amd/amdgpu/gmc_v12_0.c
+index 111111111111..222222222222 100644
+--- a/drivers/gpu/drm/amd/amdgpu/gmc_v12_0.c
++++ b/drivers/gpu/drm/amd/amdgpu/gmc_v12_0.c
+@@ -914,12 +914,12 @@ static int gmc_v12_0_sw_init(struct amdgpu_ip_block *ip_block)
+ 	adev->gmc.mc_mask = AMDGPU_GMC_HOLE_MASK;
+
+-	r = dma_set_mask_and_coherent(adev->dev, DMA_BIT_MASK(44));
++	r = dma_set_mask_and_coherent(adev->dev, DMA_BIT_MASK(48));
+ 	if (r) {
+ 		drm_warn(adev_to_drm(adev), "No suitable DMA available.\n");
+ 		return r;
+ 	}
+
+-	adev->need_swiotlb = drm_need_swiotlb(44);
++	adev->need_swiotlb = drm_need_swiotlb(48);
+
+ 	r = gmc_v12_0_mc_init(adev);

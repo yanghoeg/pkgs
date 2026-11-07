@@ -32,12 +32,12 @@ steps:
       - |
         cd /src
 
-        make -j $(nproc)
-        make -j $(nproc) modules
+        make -j 8
+        make -j 8 modules
 
         if [[ "${ARCH}" == "arm64" ]]; then
           echo "Compiling device-tree blobs"
-          make -j $(nproc) DTC_FLAGS=-@ dtbs
+          make -j 8 DTC_FLAGS=-@ dtbs
         fi
       {{ end }}
 finalize:

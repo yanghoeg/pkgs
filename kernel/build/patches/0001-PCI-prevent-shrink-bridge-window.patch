@@ -139,7 +139,9 @@ Link: https://patch.msgid.link/20260219153951.68869-1-ilpo.jarvinen@linux.intel.
 [YANG JOO WOONG: backport to v6.18.24 — adjust hunk locations for
 v6.18 line numbers and helper rename
 (pci_dev_res_remove_from_list -> remove_from_list);
-functional logic unchanged.]
+functional logic unchanged. Verified on ASUS X99-E WS +
+dual Radeon AI PRO R9700 (RDNA 4): both GPUs report
+BAR0 = 32 GB after boot.]
 Signed-off-by: YANG JOO WOONG <yjw.cpa@gmail.com>
 ---
  drivers/pci/setup-bus.c | 41 ++++++++++++++++++++++++++++++++++++++++-

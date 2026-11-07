@@ -1,0 +1,35 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: YANG JOO WOONG <yjw.cpa@gmail.com>
+Date: Sat, 10 May 2026 20:00:00 +0900
+Subject: [PATCH] net/mlx5: skip PCI shutdown to prevent CX5 poweroff hang
+
+mlx5 shutdown() calls mlx5_drain_health_wq() and mlx5_unload_one()
+which can block indefinitely waiting for firmware commands on
+ConnectX-5 (MCX516A-CCAT) during system poweroff, especially with
+SR-IOV VFs active (16+ VFs per port).
+
+Since the system is powering off, firmware notification is unnecessary
+— the NIC will be power-cycled and re-initialized on next boot.
+
+Tested on 3x ASUS X99-E WS + ConnectX-5 100GbE dual-port with 16 VFs
+running Talos Linux.
+
+Signed-off-by: YANG JOO WOONG <yjw.cpa@gmail.com>
+---
+ drivers/net/ethernet/mellanox/mlx5/core/main.c | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/drivers/net/ethernet/mellanox/mlx5/core/main.c b/drivers/net/ethernet/mellanox/mlx5/core/main.c
+index 111111111111..222222222222 100644
+--- a/drivers/net/ethernet/mellanox/mlx5/core/main.c
++++ b/drivers/net/ethernet/mellanox/mlx5/core/main.c
+@@ -2100,6 +2100,9 @@ static void remove_one(struct pci_dev *pdev)
+ static void shutdown(struct pci_dev *pdev)
+ {
+ 	struct mlx5_core_dev *dev  = pci_get_drvdata(pdev);
++
++	/* CX5 firmware hangs during poweroff with SR-IOV VFs — skip entirely */
++	return;
+ 	int err;
+
+ 	mlx5_core_info(dev, "Shutdown was called\n");

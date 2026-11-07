@@ -1,0 +1,34 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: YANG JOO WOONG <yjw.cpa@gmail.com>
+Date: Sat, 10 May 2026 20:00:00 +0900
+Subject: [PATCH] drm/amdgpu: skip PCI shutdown to prevent RDNA4 poweroff hang
+
+amdgpu_pci_shutdown() calls amdgpu_device_ip_suspend() which waits for
+GPU firmware responses that never arrive on RDNA4 (gfx1201) during
+system poweroff, causing an indefinite hang in device_shutdown().
+
+Since the system is powering off, there is no need to cleanly suspend
+the GPU — the hardware will be power-cycled on next boot regardless.
+
+Tested on 3x ASUS X99-E WS + 2x Radeon AI PRO R9700 AI TOP (RDNA4)
+running Talos Linux with drm-next 6.19 kernel.
+
+Signed-off-by: YANG JOO WOONG <yjw.cpa@gmail.com>
+---
+ drivers/gpu/drm/amd/amdgpu/amdgpu_drv.c | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/drivers/gpu/drm/amd/amdgpu/amdgpu_drv.c b/drivers/gpu/drm/amd/amdgpu/amdgpu_drv.c
+index 111111111111..222222222222 100644
+--- a/drivers/gpu/drm/amd/amdgpu/amdgpu_drv.c
++++ b/drivers/gpu/drm/amd/amdgpu/amdgpu_drv.c
+@@ -2896,6 +2896,9 @@ static void
+ amdgpu_pci_shutdown(struct pci_dev *pdev)
+ {
+ 	struct drm_device *dev = pci_get_drvdata(pdev);
++
++	/* RDNA4 firmware hangs on suspend during poweroff — skip entirely */
++	return;
+ 	struct amdgpu_device *adev = drm_to_adev(dev);
+
+ 	if (amdgpu_ras_intr_triggered())

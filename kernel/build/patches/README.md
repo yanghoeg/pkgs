@@ -1,17 +1,50 @@
-| Patch file                                                                 | Description                                | Upstream status | Link                                                                                                                                                                                                         |
-|----------------------------------------------------------------------------|--------------------------------------------|-----------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `0001-net-macb-flush-PCIe-posted-write-after-TSTART-doorbe.patch`           | macb: flush PCIe posted write after TSTART doorbell — gated behind new `MACB_CAPS_PCIE_POSTED_WRITES` cap (RP1-only) so SoC-integrated variants don't pay the readback cost | v2 submitted to netdev | [v2 thread](https://lore.kernel.org/netdev/20260514215459.36109-1-lukasz@raczylo.com/T/)                                                                                                                |
-| `0002-net-macb-insert-PCIe-read-barrier-before-TX-completi.patch`           | macb: insert non-destructive PCIe read barrier (`queue_readl(queue, IMR)`) before `macb_tx_complete_pending()` in `macb_tx_poll()`. Replaces the v1 ISR-read form which was destructive on read-clear silicon (RP1) — that read silently consumed RCOMP / ROVR / TXUBR bits, causing silent RX-completion loss at moderate-to-heavy load | v2 submitted to netdev | [v2 thread](https://lore.kernel.org/netdev/20260514215459.36109-1-lukasz@raczylo.com/T/)                                                                                                                |
-| `0003-net-macb-add-TX-stall-watchdog-to-recover-from-lost-.patch`           | macb: per-queue `delayed_work` watchdog that calls `macb_tx_restart()` if tx_tail hasn't advanced. v2 uses a `bool tx_stall_tail_moved` flag (pelwell-suggested form) instead of a tx_tail snapshot, gates the check on `netif_carrier_ok()` to eliminate a boot-time false positive, and wraps the stall-warn in `if (printk_ratelimit()) netdev_warn(...)` so events stay observable while bounded | v2 submitted to netdev | [v2 thread](https://lore.kernel.org/netdev/20260514215459.36109-1-lukasz@raczylo.com/T/) · [v2 patch 3 build-fix](https://lore.kernel.org/netdev/20260515095336.92237-1-lukasz@raczylo.com/T/)                                                                                                                |
-| `0004-PCI-prevent-shrink-bridge-window.patch`                               | PCI: prevent `adjust_bridge_window()` from shrinking a bridge window below the size required by `pbus_size_mem()` — fixes large-BAR / eGPU resource starvation                                                | Merged to mainline v6.19, candidate for 6.18.y stable backport | [lore patch](https://patch.msgid.link/20260219153951.68869-1-ilpo.jarvinen@linux.intel.com)                                                                                                            |
-| `0008-net-cadence-macb-add-EEE-LPI-statistics-counters.patch` | net: cadence: macb: add EEE LPI statistics counters | Merged to mainline v7.1 | [`237577e603ce`](https://git.kernel.org/torvalds/c/237577e603cedc8910fc61c774b47eb1fc18eef9), [v5 cover letter](https://lkml.iu.edu/2602.3/07509.html) |
-| `0009-net-cadence-macb-implement-EEE-TX-LPI-support.patch` | net: cadence: macb: implement EEE TX LPI support. **Rebased:** `MACB_CAPS_EEE` is `0x00004000` here, not upstream's `BIT(25)`, which collides with `MACB_CAPS_HIGH_SPEED` on 6.18.x; and `macb_tx_lpi_wake()` is sequenced before the TSTART write that `0001` also touches | Merged to mainline v7.1 | [`0cc425f18f59`](https://git.kernel.org/torvalds/c/0cc425f18f59f992c61c1802331d25ce689ff5d1), [v5 cover letter](https://lkml.iu.edu/2602.3/07509.html) |
-| `0010-net-cadence-macb-add-ethtool-EEE-support.patch` | macb: `get_eee` / `set_eee` as pure `phylink_ethtool_{get,set}_eee()` passthroughs. **Rebased:** entries appended after `.set_rxnfc`, as 6.18.x `gem_ethtool_ops` has neither `.get_rx_ring_count` nor `.nway_reset` | Merged to mainline v7.1 | [`61332b78761c`](https://git.kernel.org/torvalds/c/61332b78761cb1638e2bf29273050cf009fbbc0e), [v5 cover letter](https://lkml.iu.edu/2602.3/07509.html) |
-| `0011-net-cadence-macb-enable-EEE-for-Raspberry-Pi-RP1.patch` | macb: set `MACB_CAPS_EEE` on `raspberrypi_rp1_config` — fixes the EEE AutogrEEEn LPI-wake race that silently hangs Pi 5 networking. **Rebased:** appended after `MACB_CAPS_PCIE_POSTED_WRITES` added by `0001`. Note the unmodified upstream hunk fuzz-matches `mpfs_config` instead; see the in-patch note | Merged to mainline v7.1 | [`92ba3307431a`](https://git.kernel.org/torvalds/c/92ba3307431a1756a3c8094787527a38ce19623d), [sbc-raspberrypi#91](https://github.com/siderolabs/sbc-raspberrypi/issues/91) |
-| `0012-libceph-generalize-ceph_x_encrypt_offset-and-ceph_x_e.patch` | libceph: make the CephX encrypt offset/buflen helpers key-type aware instead of hardcoding the AES-CBC framing. Prep for `aes256k` ([CVE-2025-30156](https://docs.ceph.com/en/latest/security/CVE-2025-30156/)) | Merged to mainline v7.0 | [`0ee8bccf7396`](https://git.kernel.org/torvalds/c/0ee8bccf7396d50726c9c8dd3135fb64a9fe8426), [pull req](https://lore.kernel.org/all/20260217173743.1840319-1-idryomov@gmail.com/) |
-| `0013-libceph-introduce-ceph_crypto_key_prepare.patch` | libceph: split key setup out of `ceph_crypto_key_unarmor()` into `ceph_crypto_key_prepare()`, which takes the RFC 8009 key-usage numbers. Prep for `aes256k` | Merged to mainline v7.0 | [`6cec0b61aacc`](https://git.kernel.org/torvalds/c/6cec0b61aacce4da5125b21c718189f0dc11eb51), [pull req](https://lore.kernel.org/all/20260217173743.1840319-1-idryomov@gmail.com/) |
-| `0014-libceph-add-support-for-CEPH_CRYPTO_AES256KRB5.patch` | libceph: the actual `aes256k` support — new key type `CEPH_CRYPTO_AES256KRB5` (`0x2`), AES256-CTS-HMAC-SHA384-192 via the in-kernel `crypto/krb5` library, per-usage AEAD tfms and confounder+HMAC framing. Fixes kclient auth against a cluster whose CephX keys have been rotated to `--key-type aes256k` for [CVE-2025-30156](https://docs.ceph.com/en/latest/security/CVE-2025-30156/). **Adds `select CRYPTO_KRB5` to `CEPH_LIB`** — hence `CONFIG_CRYPTO_KRB5`/`KRB5ENC`/`CAMELLIA` in both configs | Merged to mainline v7.0 | [`b7cc142dbafe`](https://git.kernel.org/torvalds/c/b7cc142dbafeaf6c053284ca9121b9f70b6d6d06), [pull req](https://lore.kernel.org/all/20260217173743.1840319-1-idryomov@gmail.com/) |
-| `0015-libceph-adapt-ceph_x_challenge_blob-hashing-and-msgr1.patch` | libceph: route the connect-challenge hashing and msgr1 message signing through the key-type-aware helpers so both work with `aes256k` keys | Merged to mainline v7.0 | [`8356b4b1103b`](https://git.kernel.org/torvalds/c/8356b4b1103b8c970648c94bab724aa30e42d869), [pull req](https://lore.kernel.org/all/20260217173743.1840319-1-idryomov@gmail.com/) |
-| `0017-security-lockdown-lock-down-the-kernel-in-EFI-Secure-.patch` | security/lockdown: add `LOCK_DOWN_IN_EFI_SECURE_BOOT`, which raises lockdown to `integrity` from a `late_initcall` when the `SecureBoot`/`SetupMode` EFI variables say UEFI Secure Boot is enabled. Upstream only has the build-time `LOCK_DOWN_KERNEL_FORCE_*` choice, which cannot be conditional on how the machine booted; the distro patch this replaces keys off an out-of-tree `EFI_SECURE_BOOT` flag that is only plumbed through `boot_params` on x86, so this reads the variables directly and works on arm64 too | Not submitted; distro-local (Fedora/SUSE carry an equivalent out-of-tree patch) | [talos#14237](https://github.com/siderolabs/talos/issues/14237), [SUSE `b1a0314b0827`](https://github.com/SUSE/kernel/commit/b1a0314b0827ea781c13a27abcc3c3b96fc0e946) |
-| `0018-efistub-x86-Fix-the-size-type-of-the-Apple-propertie.patch` | efistub/x86: the Apple device properties protocol declares its size arguments as `u32`, but the firmware method is a `UINTN` — 64-bit Apple firmware writes 8 bytes through the `&size` that `retrieve_apple_device_properties()` passes to `get_all()`, clobbering the stack slot next to it. With clang and `CONFIG_EFI_MIXED=n` that neighbour is the protocol pointer `p`, so the second `get_all()` call jumps through a corrupted pointer and the machine powers off during boot. Declare the sizes as `unsigned long` | Submitted to linux-efi, `Cc: stable` | [lore patch](https://lore.kernel.org/linux-efi/20260928072832.25399-1-nicolas@brainez.net/), [talos#13231](https://github.com/siderolabs/talos/issues/13231), [talos#13579](https://github.com/siderolabs/talos/issues/13579) |
-| `0019-ACPI-scan-Register-platform-devices-for-fixed-event-.patch` | ACPI: scan: register platform devices for the "fixed event" power/sleep buttons (`LNXPWRBN`/`LNXSLPBN`), and let `acpi_create_platform_device()` handle handle-less non-namespace devices. 6.18.57 backported `52d864019636` ("ACPI: button: Convert the driver to a platform one") as a stable dependency without this prerequisite, so the platform `acpi-button` driver has nothing to bind to on machines whose power button is a fixed event (all QEMU/Proxmox guests): no `Power Button` input device, ACPI power-off ignored. Drop once 6.18.y picks it up | Merged to mainline v7.0; missing from 6.18.y stable | [`ab06eb920401`](https://git.kernel.org/torvalds/c/ab06eb9204010c61e754bf4e71ee6f554584714d), [talos#14657](https://github.com/siderolabs/talos/issues/14657) |
+# Talos kernel patches (yanghoeg fork)
+
+Pkgs base: siderolabs/pkgs `release-1.14` (Talos v1.14, config-amd64 그대로 + R6 config 5개).
+
+Kernel base: `Pkgfile:linux_version` — 현재 `6.19.0-drm-next-73ec35caf`
+(agd5f amd-staging-drm-next 스냅샷, 2026-04-28).
+
+대상 하드웨어: ASUS X99-E WS + E5-2699v4, Radeon AI PRO R9700 (gfx1201) ×2,
+ConnectX-5 (mlx5). 패치 대부분이 이 조합 고유의 문제를 다룬다.
+
+| Patch | 무엇 | Upstream 상태 |
+|---|---|---|
+| `0001-PCI-prevent-shrink-bridge-window` | 브리지 윈도우 부당 축소 방지 (Ilpo Järvinen, `dc4b4d04e1ca`) | mainline v7.1-rc1. **6.18.x LTS 에는 없음** |
+| `0002-PCI-fix-premature-removal-realloc-head` | `realloc_head` 조기 제거 버그 (Ilpo, `1ee4716a5a28`) | mainline v7.1-rc1 + **6.18.33 백포트됨**. siderolabs/pkgs PR #1536 (2026-05-07 머지) |
+| `0004-drm-amdgpu-skip-shutdown-...` | `amdgpu_pci_shutdown` 스킵 — RDNA4 FW 가 poweroff 중 suspend 에서 hang | 자체 저작, not upstreamable (workaround) |
+| `0005-mlx5-skip-shutdown-...` | mlx5 shutdown 스킵 — CX5 FW 가 SR-IOV VF 있을 때 poweroff hang | 자체 저작, not upstreamable (workaround) |
+| `0006-PCI-add-pcie_acs_override-boot-parameter` | PLX ACS 우회로 GPU P2P 허용 | 자체 저작. 메인테이너가 오랫동안 거부해온 계열 — **영구 out-of-tree** |
+| `0007-PCI-p2pdma-add-Broadwell-EP-to-whitelist` | Broadwell-EP 를 p2pdma whitelist 에 추가 | 자체 저작, 미제출 |
+| `0008-drm-amdgpu-gmc12-widen-DMA-mask-44-to-48-bit` | gfx1201 DMA mask 44→48bit — X99 가 BAR 를 44bit 위에 매핑해 P2P 거부됨 | 자체 저작, 미제출 |
+| `0017`, `0018`, `0019` | siderolabs/pkgs release-1.14 의 x86 패치(EFI Secure Boot lockdown, efistub Apple properties 크기, ACPI fixed event) | upstream pkgs 그대로. macb·libceph 패치(ARM·ceph 전용, 일부 6.19 미적용)는 뺐다 |
+
+## 베이스를 바꿀 때 (gotcha)
+
+이 목록은 **베이스 커널에 종속**이다. 리베이스 전 반드시 `patch --check` 부터.
+
+- **6.18.x LTS 로 내려가면 `0003-PCI-try-bar-resize-without-window-release` 를 되살려야 한다.**
+  6.19 drm-next 는 `drivers/pci/setup-bus.c` 의
+  `pbus_reassign_bridge_resources()` 게이트를 `list_empty(&saved)` → `!bridge` 로
+  이미 바꿔놨지만 6.18.x 에는 그 변경이 없다. 이 패치가 없으면
+  **dual-32GB BAR 리사이즈가 실패한다.** 삭제 사유는 커밋 `a48af98` 참조.
+- **`0002` 는 6.18.33 이후 베이스에서 제거해야 한다** — 중복 적용.
+- `0001-amdgpu-smu14-0x33` (SMU14_0_2 driver-if 0x2E→0x33) 은 6.19 에서 심볼이
+  `swsmu/inc/smu_v14_0.h` → `swsmu/smu14/smu_v14_0_2_ppt.c` 로 이동해 드롭했다.
+  증상(idle +220W, 팬 무응답)이 실측되지 않아 복원 안 함 —
+  베이스 변경 시 `rocm-smi --showpower --showfan` 으로 재확인할 것.
+
+## Build
+
+```sh
+cd ~/code/siderolabs/talos
+make kernel REGISTRY=<registry>:5000 USERNAME=yanghoeg PLATFORM=linux/amd64 PUSH=true JOBS=10
+make installer REGISTRY=<registry>:5000 USERNAME=yanghoeg PLATFORM=linux/amd64 PUSH=true
+```
+
+⚠ **커널만 바꾸면 끝이 아니다** — 모듈이 initramfs(`rootfs.sqsh`) 안에 있어
+hybrid initramfs 재조립이 필요하다. 그리고 `make` 는 `.config` 를 syncconfig 로
+다시 쓰므로 **의존성 미충족 심볼이 조용히 떨어진다** — 빌드된 vmlinuz 의
+ikconfig 로 검증해야 한다.
+
+절차: gitops repo `bootstrap/talos/custom-kernel-build/README.md` §7, §7-b
