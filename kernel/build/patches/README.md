@@ -16,8 +16,13 @@ ConnectX-5 (mlx5). 패치 대부분이 이 조합 고유의 문제를 다룬다.
 | `0005-mlx5-skip-shutdown-...` | mlx5 shutdown 스킵 — CX5 FW 가 SR-IOV VF 있을 때 poweroff hang | 자체 저작, not upstreamable (workaround) |
 | `0006-PCI-add-pcie_acs_override-boot-parameter` | PLX ACS 우회로 GPU P2P 허용 | 자체 저작. 메인테이너가 오랫동안 거부해온 계열 — **영구 out-of-tree** |
 | `0007-PCI-p2pdma-add-Broadwell-EP-to-whitelist` | Broadwell-EP 를 p2pdma whitelist 에 추가 | 자체 저작, 미제출 |
-| `0008-drm-amdgpu-gmc12-widen-DMA-mask-44-to-48-bit` | gfx1201 DMA mask 44→48bit — X99 가 BAR 를 44bit 위에 매핑해 P2P 거부됨 | 자체 저작, 미제출 |
 | `0017`, `0018`, `0019` | siderolabs/pkgs release-1.14 의 x86 패치(EFI Secure Boot lockdown, efistub Apple properties 크기, ACPI fixed event) | upstream pkgs 그대로. macb·libceph 패치(ARM·ceph 전용, 일부 6.19 미적용)는 뺐다 |
+
+이 브랜치에는 `0008-drm-amdgpu-gmc12-widen-DMA-mask-44-to-48-bit`(gfx1201 DMA mask 44→48bit)가 없다.
+48bit mask 로 IOMMU translated 부팅을 하면 DMAR read fault 가 났고, fault 주소는 모두 2^44 위
+IOVA 에서 비트 44-47 을 지운 값이었다. AMD 문서도 GPU 의 44bit 물리 주소 한계를 적는다.
+translated 모드에서는 `amdgpu_device_is_peer_accessible()` 이 mask 비교를 건너뛰므로
+stock 44bit mask 로도 P2P 가 허용된다.
 
 ## 베이스를 바꿀 때 (gotcha)
 
