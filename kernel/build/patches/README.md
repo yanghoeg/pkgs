@@ -1,6 +1,6 @@
 # Talos kernel patches (yanghoeg fork)
 
-Pkgs base: siderolabs/pkgs `release-1.14` (Talos v1.14, config-amd64 그대로 + R6 config 5개).
+Pkgs base: siderolabs/pkgs `release-1.14` (Talos v1.14, config-amd64 그대로 + R6 config 5개 + perf NMI hard lockup detector·panic).
 
 Kernel base: `Pkgfile:linux_version` — 현재 `6.19.0-drm-next-73ec35caf`
 (agd5f amd-staging-drm-next 스냅샷, 2026-04-28).
